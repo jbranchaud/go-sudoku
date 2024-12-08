@@ -46,6 +46,8 @@ func main() {
 	} else {
 		fmt.Println("Puzzle is valid")
 	}
+
+	printPuzzle(puzzle)
 }
 
 func validatePuzzle(puzzle [][]int) (bool, error) {
@@ -172,4 +174,38 @@ func removeBlanks(cells []int) []int {
 	}
 
 	return compactedSlice
+}
+
+func printPuzzle(puzzle [][]int) {
+	header := "╔═══════╤═══════╤═══════╗"
+	footer := "╚═══════╧═══════╧═══════╝"
+	sectorDivider := "╠═══════╪═══════╪═══════╣"
+
+	fmt.Println(header)
+	for i, row := range puzzle {
+		var builder strings.Builder
+		builder.WriteString("║")
+		for j, cell := range row {
+			if cell == 0 {
+				builder.WriteString(" _")
+			} else {
+				builder.WriteString(fmt.Sprintf(" %d", cell))
+			}
+
+			if j%3 == 2 {
+				if j == 8 {
+					builder.WriteString(" ║")
+				} else {
+					builder.WriteString(" │")
+				}
+			}
+		}
+
+		fmt.Println(builder.String())
+
+		if i%3 == 2 && i != 8 {
+			fmt.Println(sectorDivider)
+		}
+	}
+	fmt.Println(footer)
 }
