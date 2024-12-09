@@ -9,8 +9,42 @@ import (
 	"strings"
 )
 
-var numberOfRows = 9
-var numberOfColumns = 9
+var gridSize = 9
+
+type Puzzle struct {
+	Board [][]int
+}
+
+func (puz *Puzzle) getRow(rowIndex int) []int {
+	if rowIndex < 0 || rowIndex > 8 {
+		panic(fmt.Sprintf("Invalid rowIndex %d", rowIndex))
+	}
+
+	return puz.Board[rowIndex]
+}
+
+func (puz *Puzzle) getColumn(colIndex int) []int {
+	column := []int{}
+	for _, row := range puz.Board {
+		column = append(column, row[colIndex])
+	}
+
+	return column
+}
+
+func (puz *Puzzle) getSector(secIndex int) []int {
+	sector := []int{}
+	for i := range 3 {
+		for j := range 3 {
+			rowIndex := ((secIndex / 3) * 3) + i
+			cellIndex := ((secIndex % 3) * 3) + j
+
+			sector = append(sector, puz.Board[rowIndex][cellIndex])
+		}
+	}
+
+	return sector
+}
 
 func main() {
 	var reader io.Reader
@@ -19,7 +53,7 @@ func main() {
 
 	scanner := bufio.NewScanner(reader)
 
-	var puzzle [][]int
+	puzzle := Puzzle{}
 
 	for scanner.Scan() {
 		row := scanner.Text()
@@ -35,9 +69,7 @@ func main() {
 			cells = append(cells, cell)
 		}
 
-		puzzle = append(puzzle, cells)
-
-		// fmt.Println(row)
+		puzzle.Board = append(puzzle.Board, cells)
 	}
 
 	_, err := validatePuzzle(puzzle)
@@ -50,50 +82,32 @@ func main() {
 	printPuzzle(puzzle)
 }
 
-func validatePuzzle(puzzle [][]int) (bool, error) {
-	_, err := checkForInvalidValues(puzzle)
+func validatePuzzle(puzzle Puzzle) (bool, error) {
+	_, err := checkForInvalidValues(puzzle.Board)
 	if err != nil {
 		// early exit
 		return false, err
 	}
 
 	// check each row
-	for rowIndex, row := range puzzle {
-		_, err := areaHasDuplicate(row, Row, rowIndex)
+	for rowIndex := range gridSize {
+		_, err := areaHasDuplicate(puzzle.getRow(rowIndex), Row, rowIndex)
 		if err != nil {
 			return false, fmt.Errorf("Row check failed: %v", err)
 		}
 	}
 
 	// check each column
-	for columnIndex := range numberOfColumns {
-		column := []int{}
-		for _, row := range puzzle {
-			column = append(column, row[columnIndex])
-
-			_, err := areaHasDuplicate(column, Column, columnIndex)
-			if err != nil {
-				return false, fmt.Errorf("Column check failed: %v", err)
-			}
+	for columnIndex := range gridSize {
+		_, err := areaHasDuplicate(puzzle.getColumn(columnIndex), Column, columnIndex)
+		if err != nil {
+			return false, fmt.Errorf("Column check failed: %v", err)
 		}
 	}
 
 	// check each 3x3 sector
-	for sectorIndex := range numberOfColumns {
-		sector := []int{}
-		for i := range 3 {
-			for j := range 3 {
-				rowIndex := ((sectorIndex / 3) * 3) + i
-				cellIndex := ((sectorIndex % 3) * 3) + j
-
-				// fmt.Printf("- (%d,%d) -> %d\n", rowIndex, cellIndex, puzzle[rowIndex][cellIndex])
-
-				sector = append(sector, puzzle[rowIndex][cellIndex])
-			}
-		}
-
-		// fmt.Printf("Sector %d: %v\n", sectorIndex, sector)
-		_, err := areaHasDuplicate(sector, Sector, sectorIndex)
+	for sectorIndex := range gridSize {
+		_, err := areaHasDuplicate(puzzle.getSector(sectorIndex), Sector, sectorIndex)
 		if err != nil {
 			return false, fmt.Errorf("Sector check failed: %v", err)
 		}
@@ -176,7 +190,7 @@ func removeBlanks(cells []int) []int {
 	return compactedSlice
 }
 
-func printPuzzle(puzzle [][]int) {
+func printPuzzle(puzzle Puzzle) {
 	header :=
 		"╔═══════╤═══════╤═══════╗"
 	sectorDivider :=
@@ -185,7 +199,7 @@ func printPuzzle(puzzle [][]int) {
 		"╚═══════╧═══════╧═══════╝"
 
 	fmt.Println(header)
-	for i, row := range puzzle {
+	for i, row := range puzzle.Board {
 		var builder strings.Builder
 		builder.WriteString("║")
 		for j, cell := range row {
