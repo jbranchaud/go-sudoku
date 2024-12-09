@@ -177,9 +177,12 @@ func removeBlanks(cells []int) []int {
 }
 
 func printPuzzle(puzzle [][]int) {
-	header := "╔═══════╤═══════╤═══════╗"
-	footer := "╚═══════╧═══════╧═══════╝"
-	sectorDivider := "╠═══════╪═══════╪═══════╣"
+	header :=
+		"╔═══════╤═══════╤═══════╗"
+	sectorDivider :=
+		"╠═══════╪═══════╪═══════╣"
+	footer :=
+		"╚═══════╧═══════╧═══════╝"
 
 	fmt.Println(header)
 	for i, row := range puzzle {
