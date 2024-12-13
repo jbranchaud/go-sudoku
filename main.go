@@ -111,10 +111,21 @@ func main() {
 		fmt.Println("Puzzle is valid")
 	}
 
-	status, puzzle := traversePuzzle(puzzle, 1, debug)
+	status, puzzle, diagnostics := traversePuzzle(puzzle, 1, debug, &Diagnostics{})
 	if status == Solved {
 		fmt.Println("Solved the puzzle:")
 		printPuzzle(puzzle)
+	} else {
+		fmt.Println("Unable to solve puzzle:")
+		printPuzzle(puzzle)
+	}
+
+	if debug {
+		fmt.Println("")
+		fmt.Println("Search Space Diagnostics:")
+		fmt.Printf("Nodes Visited: %d\n", diagnostics.NodeVisitCount)
+		fmt.Printf("Backtracks: %d\n", diagnostics.BacktrackCount)
+		fmt.Printf("Validity Checks: %d\n", diagnostics.ValidityCheckCount)
 	}
 }
 
@@ -160,7 +171,13 @@ const (
 	Solved  PuzzleStatus = "Solved"
 )
 
-func traversePuzzle(puzzle Puzzle, level int, debug bool) (PuzzleStatus, Puzzle) {
+type Diagnostics struct {
+	BacktrackCount     int
+	NodeVisitCount     int
+	ValidityCheckCount int
+}
+
+func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
 	// this is a recursive function, so:
 	// initial pass => puzzle should be Valid
 	// cell is filled in =>
@@ -170,6 +187,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool) (PuzzleStatus, Puzzle)
 	// - if the value makes the puzzle invalid, Invalid
 	// - if the value solves the puzzle, Solved
 	status := checkPuzzleStatus(puzzle)
+	(*diagnostics).ValidityCheckCount++
 
 	// max depth of the traversal is the number of cells on the board
 	// don't let the traversal exceed it
@@ -180,7 +198,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool) (PuzzleStatus, Puzzle)
 
 	switch status {
 	case Solved:
-		return Solved, puzzle
+		return Solved, puzzle, *diagnostics
 	case Valid:
 		nextRow, nextCell, err := findNextEmptyCell(puzzle)
 		if err != nil {
@@ -191,6 +209,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool) (PuzzleStatus, Puzzle)
 
 		// make another puzzle placement
 		for _, value := range possibleValues {
+			(*diagnostics).NodeVisitCount++
 			potentialPlacement := Placement{Row: nextRow, Cell: nextCell, Value: value}
 			puzzle.Solution = append(puzzle.Solution, potentialPlacement)
 
@@ -198,12 +217,13 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool) (PuzzleStatus, Puzzle)
 				fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
 			}
 
-			latestStatus, latestPuzzle := traversePuzzle(puzzle, level+1, debug)
+			latestStatus, latestPuzzle, _ := traversePuzzle(puzzle, level+1, debug, diagnostics)
 			switch latestStatus {
 			case Solved:
-				return Solved, latestPuzzle
+				return Solved, latestPuzzle, *diagnostics
 			case Invalid:
 				// undo latest placement, continue
+				(*diagnostics).BacktrackCount++
 				pop(latestPuzzle.Solution)
 				continue
 			default:
@@ -213,12 +233,12 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool) (PuzzleStatus, Puzzle)
 		}
 
 		// if we haven't found a solution at this point, then we'll need to backtrack
-		return Invalid, puzzle
+		return Invalid, puzzle, *diagnostics
 	case Invalid:
-		return Invalid, puzzle
+		return Invalid, puzzle, *diagnostics
+	default:
+		panic("Should not have reached here when traversing puzzle")
 	}
-
-	panic("Should not have reached here when traversing puzzle")
 }
 
 func checkPuzzleStatus(puzzle Puzzle) PuzzleStatus {
