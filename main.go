@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -71,6 +72,10 @@ func (puz *Puzzle) getSector(secIndex int) []int {
 }
 
 func main() {
+	var debug bool
+	flag.BoolVar(&debug, "debug", false, "turns on debug mode, extra logging")
+	flag.Parse()
+
 	var reader io.Reader
 
 	reader = os.Stdin
@@ -107,7 +112,7 @@ func main() {
 
 	printPuzzle(puzzle)
 
-	status, puzzle := traversePuzzle(puzzle, 1)
+	status, puzzle := traversePuzzle(puzzle, 1, debug)
 	if status == Solved {
 		fmt.Println("Solved the puzzle:")
 		printPuzzle(puzzle)
@@ -156,7 +161,7 @@ const (
 	Solved  PuzzleStatus = "Solved"
 )
 
-func traversePuzzle(puzzle Puzzle, level int) (PuzzleStatus, Puzzle) {
+func traversePuzzle(puzzle Puzzle, level int, debug bool) (PuzzleStatus, Puzzle) {
 	// this is a recursive function, so:
 	// initial pass => puzzle should be Valid
 	// cell is filled in =>
@@ -190,9 +195,11 @@ func traversePuzzle(puzzle Puzzle, level int) (PuzzleStatus, Puzzle) {
 			potentialPlacement := Placement{Row: nextRow, Cell: nextCell, Value: value}
 			puzzle.Solution = append(puzzle.Solution, potentialPlacement)
 
-			fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
+			if debug {
+				fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
+			}
 
-			latestStatus, latestPuzzle := traversePuzzle(puzzle, level+1)
+			latestStatus, latestPuzzle := traversePuzzle(puzzle, level+1, debug)
 			switch latestStatus {
 			case Solved:
 				return Solved, latestPuzzle
