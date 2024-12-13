@@ -107,7 +107,7 @@ func main() {
 
 	printPuzzle(puzzle)
 
-	status, puzzle := traversePuzzle(puzzle)
+	status, puzzle := traversePuzzle(puzzle, 1)
 	if status == Solved {
 		fmt.Println("Solved the puzzle:")
 		printPuzzle(puzzle)
@@ -115,7 +115,7 @@ func main() {
 }
 
 func validatePuzzle(puzzle Puzzle) (bool, error) {
-	_, err := checkForInvalidValues(puzzle.Board)
+	_, err := checkForInvalidValues(puzzle.getCurrentBoard())
 	if err != nil {
 		// early exit
 		return false, err
@@ -156,8 +156,12 @@ const (
 	Solved  PuzzleStatus = "Solved"
 )
 
-func traversePuzzle(puzzle Puzzle) (PuzzleStatus, Puzzle) {
+func traversePuzzle(puzzle Puzzle, level int) (PuzzleStatus, Puzzle) {
 	status := checkPuzzleStatus(puzzle)
+
+	if level > 81 {
+		panic("traversePuzzle:level has exceeded 81")
+	}
 
 	switch status {
 	case Solved:
@@ -174,13 +178,16 @@ func traversePuzzle(puzzle Puzzle) (PuzzleStatus, Puzzle) {
 			potentialPlacement := Placement{Row: nextRow, Cell: nextCell, Value: value}
 			puzzle.Solution = append(puzzle.Solution, potentialPlacement)
 
-			latestStatus, latestPuzzle := traversePuzzle(puzzle)
+			fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
+
+			latestStatus, latestPuzzle := traversePuzzle(puzzle, level+1)
 			switch latestStatus {
 			case Solved:
 				return Solved, latestPuzzle
 			case Invalid:
+				// undo latest placement, continue
 				pop(latestPuzzle.Solution)
-				// latestPuzzle.Solution = latestPuzzle.Solution[len(latest)]
+				continue
 			default:
 				// we shouldn't get here, something went wrong
 				panic("traversePuzzle returned an unrecognized status")
@@ -197,7 +204,7 @@ func traversePuzzle(puzzle Puzzle) (PuzzleStatus, Puzzle) {
 }
 
 func checkPuzzleStatus(puzzle Puzzle) PuzzleStatus {
-	valid, err := checkForInvalidValues(puzzle.getCurrentBoard())
+	valid, err := validatePuzzle(puzzle)
 	if err != nil {
 		return Invalid
 	}
@@ -247,7 +254,8 @@ func findPossibleValues(puzzle Puzzle, row int, cell int) []int {
 
 	unusedValues := []int{}
 
-	for value := range gridSize {
+	for i := range gridSize {
+		value := i + 1
 		if usedValues[value] == 0 {
 			unusedValues = append(unusedValues, value)
 		}
