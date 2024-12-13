@@ -159,8 +159,11 @@ const (
 func traversePuzzle(puzzle Puzzle, level int) (PuzzleStatus, Puzzle) {
 	status := checkPuzzleStatus(puzzle)
 
-	if level > 81 {
-		panic("traversePuzzle:level has exceeded 81")
+	// max depth of the traversal is the number of cells on the board
+	// don't let the traversal exceed it
+	maxDepth := gridSize * gridSize
+	if level > maxDepth {
+		panic(fmt.Sprintf("traversePuzzle:level has exceeded %d", maxDepth))
 	}
 
 	switch status {
