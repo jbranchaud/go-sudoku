@@ -157,6 +157,14 @@ const (
 )
 
 func traversePuzzle(puzzle Puzzle, level int) (PuzzleStatus, Puzzle) {
+	// this is a recursive function, so:
+	// initial pass => puzzle should be Valid
+	// cell is filled in =>
+	// - if the value makes the puzzle invalid, Invalid
+	// - if the value is a valid value, Valid
+	// final cell is filled in =>
+	// - if the value makes the puzzle invalid, Invalid
+	// - if the value solves the puzzle, Solved
 	status := checkPuzzleStatus(puzzle)
 
 	// max depth of the traversal is the number of cells on the board
@@ -176,6 +184,7 @@ func traversePuzzle(puzzle Puzzle, level int) (PuzzleStatus, Puzzle) {
 		}
 
 		possibleValues := findPossibleValues(puzzle, nextRow, nextCell)
+
 		// make another puzzle placement
 		for _, value := range possibleValues {
 			potentialPlacement := Placement{Row: nextRow, Cell: nextCell, Value: value}
