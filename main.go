@@ -101,6 +101,7 @@ func main() {
 		puzzle.Board = append(puzzle.Board, cells)
 	}
 
+	fmt.Println("Initial puzzle:")
 	printPuzzle(puzzle)
 
 	_, err := validatePuzzle(puzzle)
@@ -109,8 +110,6 @@ func main() {
 	} else {
 		fmt.Println("Puzzle is valid")
 	}
-
-	printPuzzle(puzzle)
 
 	status, puzzle := traversePuzzle(puzzle, 1, debug)
 	if status == Solved {
