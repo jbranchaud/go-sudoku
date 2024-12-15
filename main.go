@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/pprof"
 	"slices"
 	"strconv"
 	"strings"
@@ -72,6 +73,11 @@ func (puz *Puzzle) getSector(secIndex int) []int {
 }
 
 func main() {
+	f, _ := os.Create("cpu.prof")
+	defer f.Close()
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	var debug bool
 	flag.BoolVar(&debug, "debug", false, "turns on debug mode, extra logging")
 	flag.Parse()
