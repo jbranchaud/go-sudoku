@@ -2,13 +2,14 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 var gridSize = 9
@@ -71,19 +72,8 @@ func (puz *Puzzle) getSector(secIndex int) []int {
 	return sector
 }
 
-func main() {
-	var debug bool
-	flag.BoolVar(&debug, "debug", false, "turns on debug mode, extra logging")
-	flag.Parse()
-
-	var reader io.Reader
-
-	reader = os.Stdin
-
-	scanner := bufio.NewScanner(reader)
-
-	puzzle := Puzzle{}
-
+func readInPuzzle(scanner *bufio.Scanner) Puzzle {
+	var puzzle Puzzle
 	for scanner.Scan() {
 		row := scanner.Text()
 
@@ -101,6 +91,70 @@ func main() {
 		puzzle.Board = append(puzzle.Board, cells)
 	}
 
+	return puzzle
+}
+
+func main() {
+	cmdSolve := &cobra.Command{
+		Use:   "solve [puzzle file]",
+		Short: "Solve the given Sudoku puzzle",
+		Long:  `A sudoku puzzle given to stdin will be validated and solved`,
+		Run: func(cmd *cobra.Command, args []string) {
+			var reader io.Reader
+			if len(args) > 0 {
+				// read the puzzle from the given file
+				file, err := os.Open(args[0])
+				if err != nil {
+					fmt.Printf("Unable to read file: %s\n", args[0])
+					os.Exit(1)
+				}
+
+				reader = file
+			} else {
+				file, err := os.Stdin.Stat()
+				if err != nil {
+					fmt.Printf("Error checking stdin: %v\n", err)
+					os.Exit(1)
+				}
+				waitingForUserInput := (file.Mode() & os.ModeCharDevice) != 0
+
+				if waitingForUserInput {
+					fmt.Print("Enter a file name for puzzle to solve: ")
+					termInputScanner := bufio.NewScanner(os.Stdin)
+					var filename string
+					for termInputScanner.Scan() {
+						filename = termInputScanner.Text()
+						break
+					}
+
+					file, err := os.Open(filename)
+					if err != nil {
+						fmt.Printf("Unable to read file: %s\n", args[0])
+						os.Exit(1)
+					}
+
+					reader = file
+				} else {
+					// input is being piped in from a file to stdin
+					reader = os.Stdin
+				}
+			}
+
+			scanner := bufio.NewScanner(reader)
+			puzzle := readInPuzzle(scanner)
+			solvePuzzle(puzzle, false)
+		},
+	}
+	var rootCmd = &cobra.Command{Use: "go-sudoku"}
+	rootCmd.AddCommand(cmdSolve)
+	rootCmd.Execute()
+
+	// var debug bool
+	// flag.BoolVar(&debug, "debug", false, "turns on debug mode, extra logging")
+	// flag.Parse()
+}
+
+func solvePuzzle(puzzle Puzzle, debug bool) {
 	fmt.Println("Initial puzzle:")
 	printPuzzle(puzzle)
 
