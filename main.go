@@ -100,6 +100,12 @@ func main() {
 		Short: "Solve the given Sudoku puzzle",
 		Long:  `A sudoku puzzle given to stdin will be validated and solved`,
 		Run: func(cmd *cobra.Command, args []string) {
+			debug, err := cmd.Flags().GetBool("debug")
+			if err != nil {
+				fmt.Println("Debug flag is missing from `cmdFlags()`")
+				os.Exit(1)
+			}
+
 			var reader io.Reader
 			if len(args) > 0 {
 				// read the puzzle from the given file
@@ -142,16 +148,14 @@ func main() {
 
 			scanner := bufio.NewScanner(reader)
 			puzzle := readInPuzzle(scanner)
-			solvePuzzle(puzzle, false)
+			solvePuzzle(puzzle, debug)
 		},
 	}
+	var Debug bool
 	var rootCmd = &cobra.Command{Use: "go-sudoku"}
 	rootCmd.AddCommand(cmdSolve)
+	rootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "", false, "turns on debug mode, extra logging")
 	rootCmd.Execute()
-
-	// var debug bool
-	// flag.BoolVar(&debug, "debug", false, "turns on debug mode, extra logging")
-	// flag.Parse()
 }
 
 func solvePuzzle(puzzle Puzzle, debug bool) {
