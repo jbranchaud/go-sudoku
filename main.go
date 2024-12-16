@@ -98,6 +98,7 @@ func readInPuzzle(scanner *bufio.Scanner) Puzzle {
 type Options struct {
 	Debug      bool
 	SolveOrder Order
+	Seed       int64
 	Rng        *rand.Rand
 }
 
@@ -116,6 +117,7 @@ func NewOptions(debug bool, solveOrder Order, seedFromFlag *int64) Options {
 			seed = *seedFromFlag
 		}
 
+		options.Seed = seed
 		options.Rng = rand.New(rand.NewSource(seed))
 	}
 
@@ -147,6 +149,7 @@ func main() {
 			}
 			emptyPuzzle := Puzzle{Board: board}
 			solvePuzzle(emptyPuzzle, options)
+			fmt.Println("Seed:", options.Seed)
 		},
 	}
 	cmdSolve := &cobra.Command{
