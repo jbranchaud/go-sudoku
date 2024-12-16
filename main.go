@@ -143,13 +143,10 @@ func main() {
 
 			options := NewOptions(false, Shuffled, seedFromFlag)
 
-			board := make([][]int, gridSize)
-			for i := range gridSize {
-				board[i] = make([]int, gridSize)
-			}
-			emptyPuzzle := Puzzle{Board: board}
-			solvePuzzle(emptyPuzzle, options)
-			fmt.Println("Seed:", options.Seed)
+			puzzle := generateSolvedPuzzle(options)
+
+			fmt.Printf("Generated puzzle with seed %d\n", options.Seed)
+			printPuzzle(puzzle)
 		},
 	}
 	cmdSolve := &cobra.Command{
@@ -218,6 +215,23 @@ func main() {
 	cmdGenerate.PersistentFlags().Int64VarP(&Seed, "seed", "", -1, "deterministically seed generated puzzle")
 	rootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "", false, "turns on debug mode, extra logging")
 	rootCmd.Execute()
+}
+
+func generateSolvedPuzzle(options Options) Puzzle {
+	board := make([][]int, gridSize)
+	for i := range gridSize {
+		board[i] = make([]int, gridSize)
+	}
+	emptyPuzzle := Puzzle{Board: board}
+
+	status, puzzle, _ := traversePuzzle(emptyPuzzle, 1, options, &Diagnostics{})
+
+	if status != Solved {
+		fmt.Println("Something went wrong with puzzle generation")
+		os.Exit(1)
+	}
+
+	return puzzle
 }
 
 func solvePuzzle(puzzle Puzzle, options Options) {
