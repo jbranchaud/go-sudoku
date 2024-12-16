@@ -95,6 +95,19 @@ func readInPuzzle(scanner *bufio.Scanner) Puzzle {
 }
 
 func main() {
+	cmdGenerate := &cobra.Command{
+		Use:   "generate",
+		Short: "Generate a random, solved puzzle",
+		Long:  `Generate a randomly-seeded puzzle that is fully solved`,
+		Run: func(cmd *cobra.Command, args []string) {
+			board := make([][]int, gridSize)
+			for i := range gridSize {
+				board[i] = make([]int, gridSize)
+			}
+			emptyPuzzle := Puzzle{Board: board}
+			solvePuzzle(emptyPuzzle, Shuffled, false)
+		},
+	}
 	cmdSolve := &cobra.Command{
 		Use:   "solve [puzzle file]",
 		Short: "Solve the given Sudoku puzzle",
@@ -148,17 +161,18 @@ func main() {
 
 			scanner := bufio.NewScanner(reader)
 			puzzle := readInPuzzle(scanner)
-			solvePuzzle(puzzle, debug)
+			solvePuzzle(puzzle, InOrder, debug)
 		},
 	}
 	var Debug bool
 	var rootCmd = &cobra.Command{Use: "go-sudoku"}
 	rootCmd.AddCommand(cmdSolve)
+	rootCmd.AddCommand(cmdGenerate)
 	rootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "", false, "turns on debug mode, extra logging")
 	rootCmd.Execute()
 }
 
-func solvePuzzle(puzzle Puzzle, debug bool) {
+func solvePuzzle(puzzle Puzzle, solveOrder Order, debug bool) {
 	fmt.Println("Initial puzzle:")
 	printPuzzle(puzzle)
 
@@ -169,7 +183,7 @@ func solvePuzzle(puzzle Puzzle, debug bool) {
 		fmt.Println("Puzzle is valid")
 	}
 
-	status, puzzle, diagnostics := traversePuzzle(puzzle, 1, debug, &Diagnostics{})
+	status, puzzle, diagnostics := traversePuzzle(puzzle, solveOrder, 1, debug, &Diagnostics{})
 	if status == Solved {
 		fmt.Println("Solved the puzzle:")
 		printPuzzle(puzzle)
@@ -235,7 +249,7 @@ type Diagnostics struct {
 	ValidityCheckCount int
 }
 
-func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
+func traversePuzzle(puzzle Puzzle, solveOrder Order, level int, debug bool, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
 	// this is a recursive function, so:
 	// initial pass => puzzle should be Valid
 	// cell is filled in =>
@@ -249,7 +263,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnosti
 
 	// max depth of the traversal is the number of cells on the board
 	// don't let the traversal exceed it
-	maxDepth := gridSize * gridSize
+	maxDepth := gridSize*gridSize + 1
 	if level > maxDepth {
 		panic(fmt.Sprintf("traversePuzzle:level has exceeded %d", maxDepth))
 	}
@@ -263,7 +277,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnosti
 			panic(fmt.Sprintf("Shouldn't reach here for valid puzzle: %v", err))
 		}
 
-		possibleValues := findPossibleValues(puzzle, nextRow, nextCell)
+		possibleValues := findPossibleValues(puzzle, nextRow, nextCell, solveOrder)
 
 		// make another puzzle placement
 		for _, value := range possibleValues {
@@ -275,7 +289,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnosti
 				fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
 			}
 
-			latestStatus, latestPuzzle, _ := traversePuzzle(puzzle, level+1, debug, diagnostics)
+			latestStatus, latestPuzzle, _ := traversePuzzle(puzzle, solveOrder, level+1, debug, diagnostics)
 			switch latestStatus {
 			case Solved:
 				return Solved, latestPuzzle, *diagnostics
@@ -332,7 +346,14 @@ func findNextEmptyCell(puzzle Puzzle) (int, int, error) {
 	return -1, -1, fmt.Errorf("No more empty cells in the puzzle")
 }
 
-func findPossibleValues(puzzle Puzzle, row int, cell int) []int {
+type Order string
+
+const (
+	InOrder  Order = "InOrder"
+	Shuffled Order = "Shuffled"
+)
+
+func findPossibleValues(puzzle Puzzle, row int, cell int, order Order) []int {
 	usedValues := make(map[int]int)
 
 	sectorNum := GetSectorNumberForCell(row, cell)
@@ -355,6 +376,10 @@ func findPossibleValues(puzzle Puzzle, row int, cell int) []int {
 		if usedValues[value] == 0 {
 			unusedValues = append(unusedValues, value)
 		}
+	}
+
+	if order == Shuffled {
+		Shuffle(unusedValues)
 	}
 
 	return unusedValues
