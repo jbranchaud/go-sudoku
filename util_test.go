@@ -9,14 +9,14 @@ import (
 func TestPop(t *testing.T) {
 	t.Run("multi-item list", func(t *testing.T) {
 		slice := []int{1, 2, 3}
-		poppedValue, err := pop(slice)
+		poppedValue, err := Pop(slice)
 		assert.NoError(t, err)
 		assert.Equal(t, poppedValue, 3)
 	})
 
 	t.Run("empty list", func(t *testing.T) {
 		emptySlice := []int{}
-		_, err := pop(emptySlice)
+		_, err := Pop(emptySlice)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cannot pop an empty slice")
 	})
@@ -38,35 +38,35 @@ func TestPop(t *testing.T) {
 
 func TestGetSectorNumberForCell(t *testing.T) {
 	t.Run("first sector", func(t *testing.T) {
-		firstA := getSectorNumberForCell(0, 0)
+		firstA := GetSectorNumberForCell(0, 0)
 		assert.Equal(t, firstA, 0)
 
-		firstB := getSectorNumberForCell(2, 2)
+		firstB := GetSectorNumberForCell(2, 2)
 		assert.Equal(t, firstB, 0)
 
-		firstC := getSectorNumberForCell(2, 0)
+		firstC := GetSectorNumberForCell(2, 0)
 		assert.Equal(t, firstC, 0)
 	})
 
 	t.Run("second sector", func(t *testing.T) {
-		secondA := getSectorNumberForCell(0, 3)
+		secondA := GetSectorNumberForCell(0, 3)
 		assert.Equal(t, secondA, 1)
 
-		secondB := getSectorNumberForCell(2, 3)
+		secondB := GetSectorNumberForCell(2, 3)
 		assert.Equal(t, secondB, 1)
 
-		secondC := getSectorNumberForCell(2, 5)
+		secondC := GetSectorNumberForCell(2, 5)
 		assert.Equal(t, secondC, 1)
 	})
 
 	t.Run("ninth sector", func(t *testing.T) {
-		ninthA := getSectorNumberForCell(6, 8)
+		ninthA := GetSectorNumberForCell(6, 8)
 		assert.Equal(t, ninthA, 8)
 
-		ninthB := getSectorNumberForCell(7, 7)
+		ninthB := GetSectorNumberForCell(7, 7)
 		assert.Equal(t, ninthB, 8)
 
-		ninthC := getSectorNumberForCell(8, 6)
+		ninthC := GetSectorNumberForCell(8, 6)
 		assert.Equal(t, ninthC, 8)
 	})
 }
