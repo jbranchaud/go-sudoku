@@ -28,13 +28,21 @@ func GetSectorNumberForCell(row int, cell int) int {
 }
 
 // Fisher-Yates shuffle
-func Shuffle[T cmp.Ordered](slice []T) ([]T, error) {
+func Shuffle[T cmp.Ordered](slice []T, rng *rand.Rand) ([]T, error) {
+	// this bit seems odd, I ought to be able to guarantee that an rng has been passed in
+	var internalRng rand.Rand
+	if rng == nil {
+		internalRng = rand.Rand{}
+	} else {
+		internalRng = *rng
+	}
+
 	if len(slice) == 0 {
 		return slice, nil
 	}
 
 	for i := range len(slice) - 1 {
-		j := rand.Intn(len(slice) - 1)
+		j := internalRng.Intn(len(slice) - 1)
 		slice[i], slice[j] = slice[j], slice[i]
 	}
 
