@@ -67,3 +67,18 @@ Solved the puzzle:
 ║ 5 1 6 │ 9 2 8 │ 3 7 4 ║
 ╚═══════╧═══════╧═══════╝
 ```
+
+## Generate
+
+The `generate` command will randomly generate a filled-in puzzle. This is the
+first step in creating a partially filled puzzle that can be solved.
+
+```bash
+$ go run . generate
+```
+
+Generate a random filled-in puzzle deterministically with the `--seed` flag:
+
+```bash
+$ go run . generate --seed 27
+```
