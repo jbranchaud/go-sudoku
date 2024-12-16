@@ -2,13 +2,15 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 var gridSize = 9
@@ -71,19 +73,8 @@ func (puz *Puzzle) getSector(secIndex int) []int {
 	return sector
 }
 
-func main() {
-	var debug bool
-	flag.BoolVar(&debug, "debug", false, "turns on debug mode, extra logging")
-	flag.Parse()
-
-	var reader io.Reader
-
-	reader = os.Stdin
-
-	scanner := bufio.NewScanner(reader)
-
-	puzzle := Puzzle{}
-
+func readInPuzzle(scanner *bufio.Scanner) Puzzle {
+	var puzzle Puzzle
 	for scanner.Scan() {
 		row := scanner.Text()
 
@@ -101,6 +92,101 @@ func main() {
 		puzzle.Board = append(puzzle.Board, cells)
 	}
 
+	return puzzle
+}
+
+func main() {
+	cmdGenerate := &cobra.Command{
+		Use:   "generate",
+		Short: "Generate a random, solved puzzle",
+		Long:  `Generate a randomly-seeded puzzle that is fully solved`,
+		Run: func(cmd *cobra.Command, args []string) {
+			seed, err := cmd.Flags().GetInt64("seed")
+			if err != nil {
+				fmt.Println("Seed flag is missing from `cmdFlags()`")
+				os.Exit(1)
+			}
+
+			if seed == -1 {
+				seed = rand.Int63()
+			}
+			rand.Seed(seed)
+
+			board := make([][]int, gridSize)
+			for i := range gridSize {
+				board[i] = make([]int, gridSize)
+			}
+			emptyPuzzle := Puzzle{Board: board}
+			solvePuzzle(emptyPuzzle, Shuffled, false)
+		},
+	}
+	cmdSolve := &cobra.Command{
+		Use:   "solve [puzzle file]",
+		Short: "Solve the given Sudoku puzzle",
+		Long:  `A sudoku puzzle given to stdin will be validated and solved`,
+		Run: func(cmd *cobra.Command, args []string) {
+			debug, err := cmd.Flags().GetBool("debug")
+			if err != nil {
+				fmt.Println("Debug flag is missing from `cmdFlags()`")
+				os.Exit(1)
+			}
+
+			var reader io.Reader
+			if len(args) > 0 {
+				// read the puzzle from the given file
+				file, err := os.Open(args[0])
+				if err != nil {
+					fmt.Printf("Unable to read file: %s\n", args[0])
+					os.Exit(1)
+				}
+
+				reader = file
+			} else {
+				file, err := os.Stdin.Stat()
+				if err != nil {
+					fmt.Printf("Error checking stdin: %v\n", err)
+					os.Exit(1)
+				}
+				waitingForUserInput := (file.Mode() & os.ModeCharDevice) != 0
+
+				if waitingForUserInput {
+					fmt.Print("Enter a file name for puzzle to solve: ")
+					termInputScanner := bufio.NewScanner(os.Stdin)
+					var filename string
+					for termInputScanner.Scan() {
+						filename = termInputScanner.Text()
+						break
+					}
+
+					file, err := os.Open(filename)
+					if err != nil {
+						fmt.Printf("Unable to read file: %s\n", args[0])
+						os.Exit(1)
+					}
+
+					reader = file
+				} else {
+					// input is being piped in from a file to stdin
+					reader = os.Stdin
+				}
+			}
+
+			scanner := bufio.NewScanner(reader)
+			puzzle := readInPuzzle(scanner)
+			solvePuzzle(puzzle, InOrder, debug)
+		},
+	}
+	var Debug bool
+	var Seed int64
+	var rootCmd = &cobra.Command{Use: "go-sudoku"}
+	rootCmd.AddCommand(cmdSolve)
+	rootCmd.AddCommand(cmdGenerate)
+	cmdGenerate.PersistentFlags().Int64VarP(&Seed, "seed", "", -1, "deterministically seed generated puzzle")
+	rootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "", false, "turns on debug mode, extra logging")
+	rootCmd.Execute()
+}
+
+func solvePuzzle(puzzle Puzzle, solveOrder Order, debug bool) {
 	fmt.Println("Initial puzzle:")
 	printPuzzle(puzzle)
 
@@ -111,7 +197,7 @@ func main() {
 		fmt.Println("Puzzle is valid")
 	}
 
-	status, puzzle, diagnostics := traversePuzzle(puzzle, 1, debug, &Diagnostics{})
+	status, puzzle, diagnostics := traversePuzzle(puzzle, solveOrder, 1, debug, &Diagnostics{})
 	if status == Solved {
 		fmt.Println("Solved the puzzle:")
 		printPuzzle(puzzle)
@@ -177,7 +263,7 @@ type Diagnostics struct {
 	ValidityCheckCount int
 }
 
-func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
+func traversePuzzle(puzzle Puzzle, solveOrder Order, level int, debug bool, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
 	// this is a recursive function, so:
 	// initial pass => puzzle should be Valid
 	// cell is filled in =>
@@ -191,7 +277,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnosti
 
 	// max depth of the traversal is the number of cells on the board
 	// don't let the traversal exceed it
-	maxDepth := gridSize * gridSize
+	maxDepth := gridSize*gridSize + 1
 	if level > maxDepth {
 		panic(fmt.Sprintf("traversePuzzle:level has exceeded %d", maxDepth))
 	}
@@ -205,7 +291,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnosti
 			panic(fmt.Sprintf("Shouldn't reach here for valid puzzle: %v", err))
 		}
 
-		possibleValues := findPossibleValues(puzzle, nextRow, nextCell)
+		possibleValues := findPossibleValues(puzzle, nextRow, nextCell, solveOrder)
 
 		// make another puzzle placement
 		for _, value := range possibleValues {
@@ -217,14 +303,14 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnosti
 				fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
 			}
 
-			latestStatus, latestPuzzle, _ := traversePuzzle(puzzle, level+1, debug, diagnostics)
+			latestStatus, latestPuzzle, _ := traversePuzzle(puzzle, solveOrder, level+1, debug, diagnostics)
 			switch latestStatus {
 			case Solved:
 				return Solved, latestPuzzle, *diagnostics
 			case Invalid:
 				// undo latest placement, continue
 				(*diagnostics).BacktrackCount++
-				pop(latestPuzzle.Solution)
+				Pop(latestPuzzle.Solution)
 				continue
 			default:
 				// we shouldn't get here, something went wrong
@@ -274,10 +360,17 @@ func findNextEmptyCell(puzzle Puzzle) (int, int, error) {
 	return -1, -1, fmt.Errorf("No more empty cells in the puzzle")
 }
 
-func findPossibleValues(puzzle Puzzle, row int, cell int) []int {
+type Order string
+
+const (
+	InOrder  Order = "InOrder"
+	Shuffled Order = "Shuffled"
+)
+
+func findPossibleValues(puzzle Puzzle, row int, cell int, order Order) []int {
 	usedValues := make(map[int]int)
 
-	sectorNum := getSectorNumberForCell(row, cell)
+	sectorNum := GetSectorNumberForCell(row, cell)
 
 	cellsConstrainingThisCell := slices.Concat(
 		puzzle.getRow(row),
@@ -297,6 +390,10 @@ func findPossibleValues(puzzle Puzzle, row int, cell int) []int {
 		if usedValues[value] == 0 {
 			unusedValues = append(unusedValues, value)
 		}
+	}
+
+	if order == Shuffled {
+		Shuffle(unusedValues)
 	}
 
 	return unusedValues
