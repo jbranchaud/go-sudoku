@@ -282,7 +282,7 @@ func traversePuzzle(puzzle Puzzle, level int, debug bool, diagnostics *Diagnosti
 			case Invalid:
 				// undo latest placement, continue
 				(*diagnostics).BacktrackCount++
-				pop(latestPuzzle.Solution)
+				Pop(latestPuzzle.Solution)
 				continue
 			default:
 				// we shouldn't get here, something went wrong
@@ -335,7 +335,7 @@ func findNextEmptyCell(puzzle Puzzle) (int, int, error) {
 func findPossibleValues(puzzle Puzzle, row int, cell int) []int {
 	usedValues := make(map[int]int)
 
-	sectorNum := getSectorNumberForCell(row, cell)
+	sectorNum := GetSectorNumberForCell(row, cell)
 
 	cellsConstrainingThisCell := slices.Concat(
 		puzzle.getRow(row),
