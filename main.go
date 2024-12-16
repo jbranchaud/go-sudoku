@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"slices"
 	"strconv"
@@ -100,6 +101,17 @@ func main() {
 		Short: "Generate a random, solved puzzle",
 		Long:  `Generate a randomly-seeded puzzle that is fully solved`,
 		Run: func(cmd *cobra.Command, args []string) {
+			seed, err := cmd.Flags().GetInt64("seed")
+			if err != nil {
+				fmt.Println("Seed flag is missing from `cmdFlags()`")
+				os.Exit(1)
+			}
+
+			if seed == -1 {
+				seed = rand.Int63()
+			}
+			rand.Seed(seed)
+
 			board := make([][]int, gridSize)
 			for i := range gridSize {
 				board[i] = make([]int, gridSize)
@@ -165,9 +177,11 @@ func main() {
 		},
 	}
 	var Debug bool
+	var Seed int64
 	var rootCmd = &cobra.Command{Use: "go-sudoku"}
 	rootCmd.AddCommand(cmdSolve)
 	rootCmd.AddCommand(cmdGenerate)
+	cmdGenerate.PersistentFlags().Int64VarP(&Seed, "seed", "", -1, "deterministically seed generated puzzle")
 	rootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "", false, "turns on debug mode, extra logging")
 	rootCmd.Execute()
 }
