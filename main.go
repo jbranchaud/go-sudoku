@@ -95,29 +95,61 @@ func readInPuzzle(scanner *bufio.Scanner) Puzzle {
 	return puzzle
 }
 
+type Options struct {
+	Debug      bool
+	SolveOrder Order
+	Seed       int64
+	Rng        *rand.Rand
+}
+
+func NewOptions(debug bool, solveOrder Order, seedFromFlag *int64) Options {
+	options := Options{
+		Debug:      debug,
+		SolveOrder: solveOrder,
+	}
+
+	if solveOrder == Shuffled {
+		var seed int64
+
+		if seedFromFlag == nil {
+			seed = rand.Int63()
+		} else {
+			seed = *seedFromFlag
+		}
+
+		options.Seed = seed
+		options.Rng = rand.New(rand.NewSource(seed))
+	}
+
+	return options
+}
+
 func main() {
 	cmdGenerate := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a random, solved puzzle",
 		Long:  `Generate a randomly-seeded puzzle that is fully solved`,
 		Run: func(cmd *cobra.Command, args []string) {
-			seed, err := cmd.Flags().GetInt64("seed")
-			if err != nil {
-				fmt.Println("Seed flag is missing from `cmdFlags()`")
-				os.Exit(1)
+			var seedFromFlag *int64
+			if cmd.Flags().Changed("seed") {
+				seed, err := cmd.Flags().GetInt64("seed")
+				if err != nil {
+					fmt.Println("Seed flag is missing from `cmdFlags()`")
+					os.Exit(1)
+				}
+
+				seedFromFlag = &seed
 			}
 
-			if seed == -1 {
-				seed = rand.Int63()
-			}
-			rand.Seed(seed)
+			options := NewOptions(false, Shuffled, seedFromFlag)
 
 			board := make([][]int, gridSize)
 			for i := range gridSize {
 				board[i] = make([]int, gridSize)
 			}
 			emptyPuzzle := Puzzle{Board: board}
-			solvePuzzle(emptyPuzzle, Shuffled, false)
+			solvePuzzle(emptyPuzzle, options)
+			fmt.Println("Seed:", options.Seed)
 		},
 	}
 	cmdSolve := &cobra.Command{
@@ -173,7 +205,9 @@ func main() {
 
 			scanner := bufio.NewScanner(reader)
 			puzzle := readInPuzzle(scanner)
-			solvePuzzle(puzzle, InOrder, debug)
+
+			options := NewOptions(debug, InOrder, nil)
+			solvePuzzle(puzzle, options)
 		},
 	}
 	var Debug bool
@@ -186,7 +220,7 @@ func main() {
 	rootCmd.Execute()
 }
 
-func solvePuzzle(puzzle Puzzle, solveOrder Order, debug bool) {
+func solvePuzzle(puzzle Puzzle, options Options) {
 	fmt.Println("Initial puzzle:")
 	printPuzzle(puzzle)
 
@@ -197,7 +231,7 @@ func solvePuzzle(puzzle Puzzle, solveOrder Order, debug bool) {
 		fmt.Println("Puzzle is valid")
 	}
 
-	status, puzzle, diagnostics := traversePuzzle(puzzle, solveOrder, 1, debug, &Diagnostics{})
+	status, puzzle, diagnostics := traversePuzzle(puzzle, 1, options, &Diagnostics{})
 	if status == Solved {
 		fmt.Println("Solved the puzzle:")
 		printPuzzle(puzzle)
@@ -206,7 +240,7 @@ func solvePuzzle(puzzle Puzzle, solveOrder Order, debug bool) {
 		printPuzzle(puzzle)
 	}
 
-	if debug {
+	if options.Debug {
 		fmt.Println("")
 		fmt.Println("Search Space Diagnostics:")
 		fmt.Printf("Nodes Visited: %d\n", diagnostics.NodeVisitCount)
@@ -263,7 +297,7 @@ type Diagnostics struct {
 	ValidityCheckCount int
 }
 
-func traversePuzzle(puzzle Puzzle, solveOrder Order, level int, debug bool, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
+func traversePuzzle(puzzle Puzzle, level int, options Options, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
 	// this is a recursive function, so:
 	// initial pass => puzzle should be Valid
 	// cell is filled in =>
@@ -291,7 +325,7 @@ func traversePuzzle(puzzle Puzzle, solveOrder Order, level int, debug bool, diag
 			panic(fmt.Sprintf("Shouldn't reach here for valid puzzle: %v", err))
 		}
 
-		possibleValues := findPossibleValues(puzzle, nextRow, nextCell, solveOrder)
+		possibleValues := findPossibleValues(puzzle, nextRow, nextCell, options)
 
 		// make another puzzle placement
 		for _, value := range possibleValues {
@@ -299,11 +333,11 @@ func traversePuzzle(puzzle Puzzle, solveOrder Order, level int, debug bool, diag
 			potentialPlacement := Placement{Row: nextRow, Cell: nextCell, Value: value}
 			puzzle.Solution = append(puzzle.Solution, potentialPlacement)
 
-			if debug {
+			if options.Debug {
 				fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
 			}
 
-			latestStatus, latestPuzzle, _ := traversePuzzle(puzzle, solveOrder, level+1, debug, diagnostics)
+			latestStatus, latestPuzzle, _ := traversePuzzle(puzzle, level+1, options, diagnostics)
 			switch latestStatus {
 			case Solved:
 				return Solved, latestPuzzle, *diagnostics
@@ -367,7 +401,7 @@ const (
 	Shuffled Order = "Shuffled"
 )
 
-func findPossibleValues(puzzle Puzzle, row int, cell int, order Order) []int {
+func findPossibleValues(puzzle Puzzle, row int, cell int, options Options) []int {
 	usedValues := make(map[int]int)
 
 	sectorNum := GetSectorNumberForCell(row, cell)
@@ -392,8 +426,8 @@ func findPossibleValues(puzzle Puzzle, row int, cell int, order Order) []int {
 		}
 	}
 
-	if order == Shuffled {
-		Shuffle(unusedValues)
+	if options.SolveOrder == Shuffled {
+		Shuffle(unusedValues, options.Rng)
 	}
 
 	return unusedValues
