@@ -24,11 +24,18 @@ $ cat samples/001.txt
 
 ## Solve
 
-The default functionality is to read in a puzzle and solve it. Redirect a file
-with a puzzle in it to the program and it will solve it.
+The `solve` command will read in a puzzle and solve it.
+
+You can invoke it one of the following ways:
+- specify the puzzle file for it to read in
+- redirect a puzzle to it via stdin
+- no arg, it will wait for a puzzle file name to be entered
 
 ```bash
-$ go run . < samples/001.txt
+$ go run . solve samples/001.txt
+$ go run . solve < samples/001.txt
+$ go run . solve
+Enter a file name for puzzle to solve: samples/001.txt
 
 Initial puzzle:
 ╔═══════╤═══════╤═══════╗
