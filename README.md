@@ -110,3 +110,11 @@ Generated puzzle with seed 27
 ║ 9 6 7 │ 1 3 4 │ 8 5 2 ║
 ╚═══════╧═══════╧═══════╝
 ```
+
+## Development
+
+Install development dependencies with `just` (`brew install just`):
+
+```bash
+$ just setup
+```
