@@ -144,30 +144,44 @@ func NewOptions(debug bool, solveOrder Order, seedFromFlag *int64) Options {
 	return options
 }
 
+func setupDatabase() *sql.DB {
+	databaseString := os.Getenv("GOOSE_DBSTRING")
+	if len(databaseString) == 0 {
+		fmt.Println("Error retrieving `GOOSE_DBSTRING` from env")
+		os.Exit(1)
+	}
+	db, err := sql.Open("sqlite3", databaseString)
+	if err != nil {
+		fmt.Printf("Error opening database: %v\n", err)
+		os.Exit(1)
+	}
+
+	return db
+}
+
+func recordPuzzleTemplate(db *sql.DB, puzzle Puzzle, seed int64) int64 {
+	insertPuzzleTemplate := `insert into puzzle_templates (seed, board)
+		values (?, ?);`
+
+	result, err := db.Exec(insertPuzzleTemplate, seed, puzzle.String())
+	if err != nil {
+		fmt.Printf("Error inserting puzzle template: %v\n", err)
+		os.Exit(1)
+	}
+
+	id, _ := result.LastInsertId()
+
+	return id
+}
+
 func main() {
 	cmdGenerate := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate a random, solved puzzle",
 		Long:  `Generate a randomly-seeded puzzle that is fully solved`,
 		Run: func(cmd *cobra.Command, args []string) {
-			db, err := sql.Open("sqlite3", "./go_sudoku.db")
-			if err != nil {
-				fmt.Printf("Error opening database: %v\n", err)
-				os.Exit(1)
-			}
+			db := setupDatabase()
 			defer db.Close()
-
-			createTable := `create table if not exists puzzle_templates (
-				id integer primary key autoincrement,
-				seed integer not null unique,
-				board text not null unique
-			);`
-
-			_, err = db.Exec(createTable)
-			if err != nil {
-				fmt.Printf("Error creating DB schema: %v\n", err)
-				os.Exit(1)
-			}
 
 			var seedFromFlag *int64
 			if cmd.Flags().Changed("seed") {
@@ -184,16 +198,7 @@ func main() {
 
 			puzzle := generateSolvedPuzzle(options)
 
-			insertPuzzleTemplate := `insert into puzzle_templates (seed, board)
-				values (?, ?);`
-
-			result, err := db.Exec(insertPuzzleTemplate, options.Seed, puzzle.String())
-			if err != nil {
-				fmt.Printf("Error inserting puzzle template: %v\n", err)
-				os.Exit(1)
-			}
-
-			id, _ := result.LastInsertId()
+			id := recordPuzzleTemplate(db, puzzle, options.Seed)
 
 			fmt.Printf("Generated puzzle with seed %d\n", options.Seed)
 			printPuzzle(puzzle)
