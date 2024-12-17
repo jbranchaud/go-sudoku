@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
 	"io"
 	"math/rand"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +26,24 @@ type Placement struct {
 type Puzzle struct {
 	Board    [][]int
 	Solution []Placement
+}
+
+func (puz *Puzzle) String() string {
+	board := puz.getCurrentBoard()
+
+	var builder strings.Builder
+	for i, row := range board {
+		for _, cell := range row {
+			builder.WriteString(strconv.Itoa(cell))
+		}
+
+		// add a new line after each row of cells, unless it is the last row
+		if i != len(board)-1 {
+			builder.WriteString("\n")
+		}
+	}
+
+	return builder.String()
 }
 
 // Make a copy of the initial puzzle board and apply all Placements in the
@@ -130,6 +150,25 @@ func main() {
 		Short: "Generate a random, solved puzzle",
 		Long:  `Generate a randomly-seeded puzzle that is fully solved`,
 		Run: func(cmd *cobra.Command, args []string) {
+			db, err := sql.Open("sqlite3", "./go_sudoku.db")
+			if err != nil {
+				fmt.Printf("Error opening database: %v\n", err)
+				os.Exit(1)
+			}
+			defer db.Close()
+
+			createTable := `create table if not exists puzzle_templates (
+				id integer primary key autoincrement,
+				seed integer not null unique,
+				board text not null unique
+			);`
+
+			_, err = db.Exec(createTable)
+			if err != nil {
+				fmt.Printf("Error creating DB schema: %v\n", err)
+				os.Exit(1)
+			}
+
 			var seedFromFlag *int64
 			if cmd.Flags().Changed("seed") {
 				seed, err := cmd.Flags().GetInt64("seed")
@@ -145,8 +184,20 @@ func main() {
 
 			puzzle := generateSolvedPuzzle(options)
 
+			insertPuzzleTemplate := `insert into puzzle_templates (seed, board)
+				values (?, ?);`
+
+			result, err := db.Exec(insertPuzzleTemplate, options.Seed, puzzle.String())
+			if err != nil {
+				fmt.Printf("Error inserting puzzle template: %v\n", err)
+				os.Exit(1)
+			}
+
+			id, _ := result.LastInsertId()
+
 			fmt.Printf("Generated puzzle with seed %d\n", options.Seed)
 			printPuzzle(puzzle)
+			fmt.Printf("Inserted row in puzzle_templates, id: %d\n", id)
 		},
 	}
 	cmdSolve := &cobra.Command{
