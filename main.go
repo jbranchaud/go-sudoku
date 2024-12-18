@@ -93,6 +93,15 @@ func (puz *Puzzle) getSector(secIndex int) []int {
 	return sector
 }
 
+func (puz *Puzzle) PlaceValue(row int, cell int, value int) {
+	potentialPlacement := Placement{Row: row, Cell: cell, Value: value}
+	puz.Solution = append(puz.Solution, potentialPlacement)
+}
+
+func (puz *Puzzle) UndoLastPlacement() {
+	Pop(puz.Solution)
+}
+
 func readInPuzzle(scanner *bufio.Scanner) Puzzle {
 	var puzzle Puzzle
 	for scanner.Scan() {
@@ -400,8 +409,7 @@ func traversePuzzle(puzzle Puzzle, level int, options Options, diagnostics *Diag
 		// make another puzzle placement
 		for _, value := range possibleValues {
 			(*diagnostics).NodeVisitCount++
-			potentialPlacement := Placement{Row: nextRow, Cell: nextCell, Value: value}
-			puzzle.Solution = append(puzzle.Solution, potentialPlacement)
+			puzzle.PlaceValue(nextRow, nextCell, value)
 
 			if options.Debug {
 				fmt.Printf("%d) placing %d at (%d,%d) of %v\n", level, value, nextRow, nextCell, possibleValues)
@@ -414,7 +422,7 @@ func traversePuzzle(puzzle Puzzle, level int, options Options, diagnostics *Diag
 			case Invalid:
 				// undo latest placement, continue
 				(*diagnostics).BacktrackCount++
-				Pop(latestPuzzle.Solution)
+				latestPuzzle.UndoLastPlacement()
 				continue
 			default:
 				// we shouldn't get here, something went wrong
