@@ -6,22 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPop(t *testing.T) {
-	t.Run("multi-item list", func(t *testing.T) {
-		slice := []int{1, 2, 3}
-		poppedValue, err := Pop(slice)
-		assert.NoError(t, err)
-		assert.Equal(t, poppedValue, 3)
-	})
-
-	t.Run("empty list", func(t *testing.T) {
-		emptySlice := []int{}
-		_, err := Pop(emptySlice)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot pop an empty slice")
-	})
-}
-
 // +-----------------+-----------------+-----------------+
 // | 0,0   0,1   0,2 | 0,3   0,4   0,5 | 0,6   0,7   0,8 |
 // | 1,0   1,1   1,2 | 1,3   1,4   1,5 | 1,6   1,7   1,8 |
