@@ -13,97 +13,12 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
+
+	"github.com/jbranchaud/go-sudoku/internal/sudoku"
 )
 
-var gridSize = 9
-
-type Placement struct {
-	Row   int
-	Cell  int
-	Value int
-}
-
-type Puzzle struct {
-	Board    [][]int
-	Solution []Placement
-}
-
-func (puz *Puzzle) String() string {
-	board := puz.getCurrentBoard()
-
-	var builder strings.Builder
-	for i, row := range board {
-		for _, cell := range row {
-			builder.WriteString(strconv.Itoa(cell))
-		}
-
-		// add a new line after each row of cells, unless it is the last row
-		if i != len(board)-1 {
-			builder.WriteString("\n")
-		}
-	}
-
-	return builder.String()
-}
-
-// Make a copy of the initial puzzle board and apply all Placements in the
-// Solution to it.
-func (puz *Puzzle) getCurrentBoard() [][]int {
-	currentBoard := make([][]int, gridSize)
-	for i := range gridSize {
-		currentBoard[i] = make([]int, gridSize)
-		copy(currentBoard[i], puz.Board[i])
-	}
-
-	for _, p := range puz.Solution {
-		currentBoard[p.Row][p.Cell] = p.Value
-	}
-
-	return currentBoard
-}
-
-func (puz *Puzzle) getRow(rowIndex int) []int {
-	if rowIndex < 0 || rowIndex > 8 {
-		panic(fmt.Sprintf("Invalid rowIndex %d", rowIndex))
-	}
-
-	return puz.getCurrentBoard()[rowIndex]
-}
-
-func (puz *Puzzle) getColumn(colIndex int) []int {
-	column := []int{}
-	for _, row := range puz.getCurrentBoard() {
-		column = append(column, row[colIndex])
-	}
-
-	return column
-}
-
-func (puz *Puzzle) getSector(secIndex int) []int {
-	sector := []int{}
-	for i := range 3 {
-		for j := range 3 {
-			rowIndex := ((secIndex / 3) * 3) + i
-			cellIndex := ((secIndex % 3) * 3) + j
-
-			sector = append(sector, puz.getCurrentBoard()[rowIndex][cellIndex])
-		}
-	}
-
-	return sector
-}
-
-func (puz *Puzzle) PlaceValue(row int, cell int, value int) {
-	potentialPlacement := Placement{Row: row, Cell: cell, Value: value}
-	puz.Solution = append(puz.Solution, potentialPlacement)
-}
-
-func (puz *Puzzle) UndoLastPlacement() {
-	Pop(puz.Solution)
-}
-
-func readInPuzzle(scanner *bufio.Scanner) Puzzle {
-	var puzzle Puzzle
+func readInPuzzle(scanner *bufio.Scanner) sudoku.Puzzle {
+	var puzzle sudoku.Puzzle
 	for scanner.Scan() {
 		row := scanner.Text()
 
@@ -168,7 +83,7 @@ func setupDatabase() *sql.DB {
 	return db
 }
 
-func recordPuzzleTemplate(db *sql.DB, puzzle Puzzle, seed int64) int64 {
+func recordPuzzleTemplate(db *sql.DB, puzzle sudoku.Puzzle, seed int64) int64 {
 	insertPuzzleTemplate := `insert into puzzle_templates (seed, board)
 		values (?, ?);`
 
@@ -282,12 +197,12 @@ func main() {
 	rootCmd.Execute()
 }
 
-func generateSolvedPuzzle(options Options) Puzzle {
-	board := make([][]int, gridSize)
-	for i := range gridSize {
-		board[i] = make([]int, gridSize)
+func generateSolvedPuzzle(options Options) sudoku.Puzzle {
+	board := make([][]int, sudoku.GridSize)
+	for i := range sudoku.GridSize {
+		board[i] = make([]int, sudoku.GridSize)
 	}
-	emptyPuzzle := Puzzle{Board: board}
+	emptyPuzzle := sudoku.Puzzle{Board: board}
 
 	status, puzzle, _ := traversePuzzle(emptyPuzzle, 1, options, &Diagnostics{})
 
@@ -299,7 +214,7 @@ func generateSolvedPuzzle(options Options) Puzzle {
 	return puzzle
 }
 
-func solvePuzzle(puzzle Puzzle, options Options) {
+func solvePuzzle(puzzle sudoku.Puzzle, options Options) {
 	fmt.Println("Initial puzzle:")
 	printPuzzle(puzzle)
 
@@ -328,32 +243,32 @@ func solvePuzzle(puzzle Puzzle, options Options) {
 	}
 }
 
-func validatePuzzle(puzzle Puzzle) (bool, error) {
-	_, err := checkForInvalidValues(puzzle.getCurrentBoard())
+func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
+	_, err := checkForInvalidValues(puzzle.GetCurrentBoard())
 	if err != nil {
 		// early exit
 		return false, err
 	}
 
 	// check each row
-	for rowIndex := range gridSize {
-		_, err := areaHasDuplicate(puzzle.getRow(rowIndex), Row, rowIndex)
+	for rowIndex := range sudoku.GridSize {
+		_, err := areaHasDuplicate(puzzle.GetRow(rowIndex), Row, rowIndex)
 		if err != nil {
 			return false, fmt.Errorf("Row check failed: %v", err)
 		}
 	}
 
 	// check each column
-	for columnIndex := range gridSize {
-		_, err := areaHasDuplicate(puzzle.getColumn(columnIndex), Column, columnIndex)
+	for columnIndex := range sudoku.GridSize {
+		_, err := areaHasDuplicate(puzzle.GetColumn(columnIndex), Column, columnIndex)
 		if err != nil {
 			return false, fmt.Errorf("Column check failed: %v", err)
 		}
 	}
 
 	// check each 3x3 sector
-	for sectorIndex := range gridSize {
-		_, err := areaHasDuplicate(puzzle.getSector(sectorIndex), Sector, sectorIndex)
+	for sectorIndex := range sudoku.GridSize {
+		_, err := areaHasDuplicate(puzzle.GetSector(sectorIndex), Sector, sectorIndex)
 		if err != nil {
 			return false, fmt.Errorf("Sector check failed: %v", err)
 		}
@@ -376,7 +291,7 @@ type Diagnostics struct {
 	ValidityCheckCount int
 }
 
-func traversePuzzle(puzzle Puzzle, level int, options Options, diagnostics *Diagnostics) (PuzzleStatus, Puzzle, Diagnostics) {
+func traversePuzzle(puzzle sudoku.Puzzle, level int, options Options, diagnostics *Diagnostics) (PuzzleStatus, sudoku.Puzzle, Diagnostics) {
 	// this is a recursive function, so:
 	// initial pass => puzzle should be Valid
 	// cell is filled in =>
@@ -390,7 +305,7 @@ func traversePuzzle(puzzle Puzzle, level int, options Options, diagnostics *Diag
 
 	// max depth of the traversal is the number of cells on the board
 	// don't let the traversal exceed it
-	maxDepth := gridSize*gridSize + 1
+	maxDepth := sudoku.GridSize*sudoku.GridSize + 1
 	if level > maxDepth {
 		panic(fmt.Sprintf("traversePuzzle:level has exceeded %d", maxDepth))
 	}
@@ -439,7 +354,7 @@ func traversePuzzle(puzzle Puzzle, level int, options Options, diagnostics *Diag
 	}
 }
 
-func checkPuzzleStatus(puzzle Puzzle) PuzzleStatus {
+func checkPuzzleStatus(puzzle sudoku.Puzzle) PuzzleStatus {
 	valid, err := validatePuzzle(puzzle)
 	if err != nil {
 		return Invalid
@@ -458,11 +373,11 @@ func checkPuzzleStatus(puzzle Puzzle) PuzzleStatus {
 	}
 }
 
-func findNextEmptyCell(puzzle Puzzle) (int, int, error) {
-	currentBoard := puzzle.getCurrentBoard()
+func findNextEmptyCell(puzzle sudoku.Puzzle) (int, int, error) {
+	currentBoard := puzzle.GetCurrentBoard()
 
-	for row := range gridSize {
-		for cell := range gridSize {
+	for row := range sudoku.GridSize {
+		for cell := range sudoku.GridSize {
 			if currentBoard[row][cell] == 0 {
 				return row, cell, nil
 			}
@@ -479,15 +394,15 @@ const (
 	Shuffled Order = "Shuffled"
 )
 
-func findPossibleValues(puzzle Puzzle, row int, cell int, options Options) []int {
+func findPossibleValues(puzzle sudoku.Puzzle, row int, cell int, options Options) []int {
 	usedValues := make(map[int]int)
 
 	sectorNum := GetSectorNumberForCell(row, cell)
 
 	cellsConstrainingThisCell := slices.Concat(
-		puzzle.getRow(row),
-		puzzle.getColumn(cell),
-		puzzle.getSector(sectorNum),
+		puzzle.GetRow(row),
+		puzzle.GetColumn(cell),
+		puzzle.GetSector(sectorNum),
 	)
 	for _, rowEntry := range cellsConstrainingThisCell {
 		if rowEntry != 0 {
@@ -497,7 +412,7 @@ func findPossibleValues(puzzle Puzzle, row int, cell int, options Options) []int
 
 	unusedValues := []int{}
 
-	for i := range gridSize {
+	for i := range sudoku.GridSize {
 		value := i + 1
 		if usedValues[value] == 0 {
 			unusedValues = append(unusedValues, value)
@@ -514,7 +429,7 @@ func findPossibleValues(puzzle Puzzle, row int, cell int, options Options) []int
 func listMissingValues(section []int) []int {
 	missingValues := []int{}
 
-	for i := range gridSize {
+	for i := range sudoku.GridSize {
 		val := i + 1
 		seen := false
 		for _, cell := range section {
@@ -600,7 +515,7 @@ func removeBlanks(cells []int) []int {
 	return compactedSlice
 }
 
-func printPuzzle(puzzle Puzzle) {
+func printPuzzle(puzzle sudoku.Puzzle) {
 	header :=
 		"╔═══════╤═══════╤═══════╗"
 	sectorDivider :=
@@ -608,7 +523,7 @@ func printPuzzle(puzzle Puzzle) {
 	footer :=
 		"╚═══════╧═══════╧═══════╝"
 
-	currentBoard := puzzle.getCurrentBoard()
+	currentBoard := puzzle.GetCurrentBoard()
 
 	fmt.Println(header)
 	for i, row := range currentBoard {
