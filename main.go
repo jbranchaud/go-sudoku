@@ -516,40 +516,5 @@ func removeBlanks(cells []int) []int {
 }
 
 func printPuzzle(puzzle sudoku.Puzzle) {
-	header :=
-		"╔═══════╤═══════╤═══════╗"
-	sectorDivider :=
-		"╠═══════╪═══════╪═══════╣"
-	footer :=
-		"╚═══════╧═══════╧═══════╝"
-
-	currentBoard := puzzle.CurrentBoard()
-
-	fmt.Println(header)
-	for i, row := range currentBoard {
-		var builder strings.Builder
-		builder.WriteString("║")
-		for j, cell := range row {
-			if cell == 0 {
-				builder.WriteString(" _")
-			} else {
-				builder.WriteString(fmt.Sprintf(" %d", cell))
-			}
-
-			if j%3 == 2 {
-				if j == 8 {
-					builder.WriteString(" ║")
-				} else {
-					builder.WriteString(" │")
-				}
-			}
-		}
-
-		fmt.Println(builder.String())
-
-		if i%3 == 2 && i != 8 {
-			fmt.Println(sectorDivider)
-		}
-	}
-	fmt.Println(footer)
+	fmt.Println(puzzle.PrettyString())
 }

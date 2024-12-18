@@ -37,6 +37,50 @@ func (puz *Puzzle) String() string {
 	return builder.String()
 }
 
+func (puz *Puzzle) PrettyString() string {
+	header :=
+		"╔═══════╤═══════╤═══════╗"
+	sectorDivider :=
+		"╠═══════╪═══════╪═══════╣"
+	footer :=
+		"╚═══════╧═══════╧═══════╝"
+
+	currentBoard := puz.CurrentBoard()
+
+	var builder strings.Builder
+
+	builder.WriteString(header)
+	builder.WriteString("\n")
+	for i, row := range currentBoard {
+		builder.WriteString("║")
+		for j, cell := range row {
+			if cell == 0 {
+				builder.WriteString(" _")
+			} else {
+				builder.WriteString(fmt.Sprintf(" %d", cell))
+			}
+
+			if j%3 == 2 {
+				if j == 8 {
+					builder.WriteString(" ║")
+				} else {
+					builder.WriteString(" │")
+				}
+			}
+		}
+
+		builder.WriteString("\n")
+
+		if i%3 == 2 && i != 8 {
+			builder.WriteString(sectorDivider)
+			builder.WriteString("\n")
+		}
+	}
+	builder.WriteString(footer)
+
+	return builder.String()
+}
+
 // Make a copy of the initial puzzle board and apply all Placements in the
 // Solution to it.
 func (puz *Puzzle) CurrentBoard() [][]int {
