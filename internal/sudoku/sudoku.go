@@ -23,7 +23,7 @@ type Puzzle struct {
 }
 
 func (puz *Puzzle) String() string {
-	board := puz.GetCurrentBoard()
+	board := puz.CurrentBoard()
 
 	var builder strings.Builder
 	for i, row := range board {
@@ -42,7 +42,7 @@ func (puz *Puzzle) String() string {
 
 // Make a copy of the initial puzzle board and apply all Placements in the
 // Solution to it.
-func (puz *Puzzle) GetCurrentBoard() [][]int {
+func (puz *Puzzle) CurrentBoard() [][]int {
 	currentBoard := make([][]int, GridSize)
 	for i := range GridSize {
 		currentBoard[i] = make([]int, GridSize)
@@ -61,12 +61,12 @@ func (puz *Puzzle) GetRow(rowIndex int) []int {
 		panic(fmt.Sprintf("Invalid rowIndex %d", rowIndex))
 	}
 
-	return puz.GetCurrentBoard()[rowIndex]
+	return puz.CurrentBoard()[rowIndex]
 }
 
 func (puz *Puzzle) GetColumn(colIndex int) []int {
 	column := []int{}
-	for _, row := range puz.GetCurrentBoard() {
+	for _, row := range puz.CurrentBoard() {
 		column = append(column, row[colIndex])
 	}
 
@@ -80,7 +80,7 @@ func (puz *Puzzle) GetSector(secIndex int) []int {
 			rowIndex := ((secIndex / 3) * 3) + i
 			cellIndex := ((secIndex % 3) * 3) + j
 
-			sector = append(sector, puz.GetCurrentBoard()[rowIndex][cellIndex])
+			sector = append(sector, puz.CurrentBoard()[rowIndex][cellIndex])
 		}
 	}
 

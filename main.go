@@ -244,7 +244,7 @@ func solvePuzzle(puzzle sudoku.Puzzle, options Options) {
 }
 
 func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
-	_, err := checkForInvalidValues(puzzle.GetCurrentBoard())
+	_, err := checkForInvalidValues(puzzle.CurrentBoard())
 	if err != nil {
 		// early exit
 		return false, err
@@ -374,7 +374,7 @@ func checkPuzzleStatus(puzzle sudoku.Puzzle) PuzzleStatus {
 }
 
 func findNextEmptyCell(puzzle sudoku.Puzzle) (int, int, error) {
-	currentBoard := puzzle.GetCurrentBoard()
+	currentBoard := puzzle.CurrentBoard()
 
 	for row := range sudoku.GridSize {
 		for cell := range sudoku.GridSize {
@@ -523,7 +523,7 @@ func printPuzzle(puzzle sudoku.Puzzle) {
 	footer :=
 		"╚═══════╧═══════╧═══════╝"
 
-	currentBoard := puzzle.GetCurrentBoard()
+	currentBoard := puzzle.CurrentBoard()
 
 	fmt.Println(header)
 	for i, row := range currentBoard {
