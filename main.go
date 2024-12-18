@@ -252,7 +252,7 @@ func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
 
 	// check each row
 	for rowIndex := range sudoku.GridSize {
-		_, err := areaHasDuplicate(puzzle.GetRow(rowIndex), Row, rowIndex)
+		_, err := areaHasDuplicate(puzzle.RowAt(rowIndex), Row, rowIndex)
 		if err != nil {
 			return false, fmt.Errorf("Row check failed: %v", err)
 		}
@@ -260,7 +260,7 @@ func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
 
 	// check each column
 	for columnIndex := range sudoku.GridSize {
-		_, err := areaHasDuplicate(puzzle.GetColumn(columnIndex), Column, columnIndex)
+		_, err := areaHasDuplicate(puzzle.ColumnAt(columnIndex), Column, columnIndex)
 		if err != nil {
 			return false, fmt.Errorf("Column check failed: %v", err)
 		}
@@ -268,7 +268,7 @@ func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
 
 	// check each 3x3 sector
 	for sectorIndex := range sudoku.GridSize {
-		_, err := areaHasDuplicate(puzzle.GetSector(sectorIndex), Sector, sectorIndex)
+		_, err := areaHasDuplicate(puzzle.SectorAt(sectorIndex), Sector, sectorIndex)
 		if err != nil {
 			return false, fmt.Errorf("Sector check failed: %v", err)
 		}
@@ -400,9 +400,9 @@ func findPossibleValues(puzzle sudoku.Puzzle, row int, cell int, options Options
 	sectorNum := GetSectorNumberForCell(row, cell)
 
 	cellsConstrainingThisCell := slices.Concat(
-		puzzle.GetRow(row),
-		puzzle.GetColumn(cell),
-		puzzle.GetSector(sectorNum),
+		puzzle.RowAt(row),
+		puzzle.ColumnAt(cell),
+		puzzle.SectorAt(sectorNum),
 	)
 	for _, rowEntry := range cellsConstrainingThisCell {
 		if rowEntry != 0 {

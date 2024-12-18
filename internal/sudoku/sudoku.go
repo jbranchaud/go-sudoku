@@ -6,9 +6,6 @@ import (
 	"strings"
 )
 
-// TODO: update all the `Get*` methods to be things like `puzzle.CurrentBoard()`
-// and `puzzle.RowAt(rowIndex int)`
-
 var GridSize = 9
 
 type Placement struct {
@@ -56,7 +53,7 @@ func (puz *Puzzle) CurrentBoard() [][]int {
 	return currentBoard
 }
 
-func (puz *Puzzle) GetRow(rowIndex int) []int {
+func (puz *Puzzle) RowAt(rowIndex int) []int {
 	if rowIndex < 0 || rowIndex > 8 {
 		panic(fmt.Sprintf("Invalid rowIndex %d", rowIndex))
 	}
@@ -64,7 +61,7 @@ func (puz *Puzzle) GetRow(rowIndex int) []int {
 	return puz.CurrentBoard()[rowIndex]
 }
 
-func (puz *Puzzle) GetColumn(colIndex int) []int {
+func (puz *Puzzle) ColumnAt(colIndex int) []int {
 	column := []int{}
 	for _, row := range puz.CurrentBoard() {
 		column = append(column, row[colIndex])
@@ -73,7 +70,7 @@ func (puz *Puzzle) GetColumn(colIndex int) []int {
 	return column
 }
 
-func (puz *Puzzle) GetSector(secIndex int) []int {
+func (puz *Puzzle) SectorAt(secIndex int) []int {
 	sector := []int{}
 	for i := range 3 {
 		for j := range 3 {
