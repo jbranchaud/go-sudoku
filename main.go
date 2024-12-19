@@ -253,7 +253,11 @@ func solvePuzzle(puzzle sudoku.Puzzle, options Options) {
 		solvedPuzzle := hydratePuzzle(diagnostics.Solutions[0])
 		fmt.Println("Solved the puzzle:")
 		if diagnostics.SolutionsFound > 1 {
-			fmt.Printf("(this puzzle has %d solutions)\n", diagnostics.SolutionsFound)
+			if options.TraversalType == EnsureUnique {
+				fmt.Printf("(this puzzle has at least %d solutions)\n", diagnostics.SolutionsFound)
+			} else {
+				fmt.Printf("(this puzzle has %d solutions)\n", diagnostics.SolutionsFound)
+			}
 		}
 		printPuzzle(solvedPuzzle)
 	} else {
@@ -351,6 +355,7 @@ func traversePuzzle(puzzle sudoku.Puzzle, level int, options Options, diagnostic
 			return Solved, puzzle, *diagnostics
 		case EnsureUnique:
 			if (*diagnostics).SolutionsFound > 1 {
+				// essentially return early as soon as we've seen multiple solutions
 				return Solved, puzzle, *diagnostics
 			} else {
 				return Invalid, puzzle, *diagnostics
