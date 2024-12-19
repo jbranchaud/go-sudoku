@@ -97,6 +97,30 @@ func (puz *Puzzle) CurrentBoard() [][]int {
 	return currentBoard
 }
 
+func removeBlanks(cells []int) []int {
+	compactedSlice := []int{}
+
+	for _, cell := range cells {
+		if cell != 0 {
+			compactedSlice = append(compactedSlice, cell)
+		}
+	}
+
+	return compactedSlice
+}
+
+func (puz *Puzzle) ValuesInRow(rowIndex int) []int {
+	return removeBlanks(puz.RowAt(rowIndex))
+}
+
+func (puz *Puzzle) ValuesInColumn(columnIndex int) []int {
+	return removeBlanks(puz.ColumnAt(columnIndex))
+}
+
+func (puz *Puzzle) ValuesInSector(sectorIndex int) []int {
+	return removeBlanks(puz.SectorAt(sectorIndex))
+}
+
 func (puz *Puzzle) RowAt(rowIndex int) []int {
 	if rowIndex < 0 || rowIndex > 8 {
 		panic(fmt.Sprintf("Invalid rowIndex %d", rowIndex))
