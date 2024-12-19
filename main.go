@@ -18,10 +18,22 @@ import (
 )
 
 func readInPuzzle(scanner *bufio.Scanner) sudoku.Puzzle {
-	var puzzle sudoku.Puzzle
+	rows := []string{}
 	for scanner.Scan() {
 		row := scanner.Text()
+		rows = append(rows, row)
+	}
 
+	puzzleString := strings.Join(rows, "\n")
+	puzzle := hydratePuzzle(puzzleString)
+
+	return puzzle
+}
+
+func hydratePuzzle(str string) sudoku.Puzzle {
+	var puzzle sudoku.Puzzle
+
+	for _, row := range strings.Split(str, "\n") {
 		unparsedCells := strings.Split(row, "")
 		var cells []int
 		for _, unparsedCell := range unparsedCells {
@@ -39,17 +51,27 @@ func readInPuzzle(scanner *bufio.Scanner) sudoku.Puzzle {
 	return puzzle
 }
 
+type TraversalType string
+
+const (
+	FindFirst    TraversalType = "FindFirst"
+	EnsureUnique TraversalType = "EnsureUnique"
+	FindAll      TraversalType = "FindAll"
+)
+
 type Options struct {
-	Debug      bool
-	SolveOrder Order
-	Seed       int64
-	Rng        *rand.Rand
+	Debug         bool
+	TraversalType TraversalType
+	SolveOrder    Order
+	Seed          int64
+	Rng           *rand.Rand
 }
 
-func NewOptions(debug bool, solveOrder Order, seedFromFlag *int64) Options {
+func NewOptions(debug bool, traversalType TraversalType, solveOrder Order, seedFromFlag *int64) Options {
 	options := Options{
-		Debug:      debug,
-		SolveOrder: solveOrder,
+		Debug:         debug,
+		SolveOrder:    solveOrder,
+		TraversalType: traversalType,
 	}
 
 	if solveOrder == Shuffled {
@@ -118,7 +140,7 @@ func main() {
 				seedFromFlag = &seed
 			}
 
-			options := NewOptions(false, Shuffled, seedFromFlag)
+			options := NewOptions(false, FindFirst, Shuffled, seedFromFlag)
 
 			puzzle := generateSolvedPuzzle(options)
 
@@ -183,7 +205,7 @@ func main() {
 			scanner := bufio.NewScanner(reader)
 			puzzle := readInPuzzle(scanner)
 
-			options := NewOptions(debug, InOrder, nil)
+			options := NewOptions(debug, EnsureUnique, InOrder, nil)
 			solvePuzzle(puzzle, options)
 		},
 	}
@@ -226,9 +248,14 @@ func solvePuzzle(puzzle sudoku.Puzzle, options Options) {
 	}
 
 	status, puzzle, diagnostics := traversePuzzle(puzzle, 1, options, &Diagnostics{})
+
 	if status == Solved {
+		solvedPuzzle := hydratePuzzle(diagnostics.Solutions[0])
 		fmt.Println("Solved the puzzle:")
-		printPuzzle(puzzle)
+		if diagnostics.SolutionsFound > 1 {
+			fmt.Printf("(this puzzle has %d solutions)\n", diagnostics.SolutionsFound)
+		}
+		printPuzzle(solvedPuzzle)
 	} else {
 		fmt.Println("Unable to solve puzzle:")
 		printPuzzle(puzzle)
@@ -240,6 +267,7 @@ func solvePuzzle(puzzle sudoku.Puzzle, options Options) {
 		fmt.Printf("Nodes Visited: %d\n", diagnostics.NodeVisitCount)
 		fmt.Printf("Backtracks: %d\n", diagnostics.BacktrackCount)
 		fmt.Printf("Validity Checks: %d\n", diagnostics.ValidityCheckCount)
+		fmt.Printf("Solutions Found: %d\n", diagnostics.SolutionsFound)
 	}
 }
 
@@ -252,7 +280,7 @@ func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
 
 	// check each row
 	for rowIndex := range sudoku.GridSize {
-		_, err := areaHasDuplicate(puzzle.RowAt(rowIndex), Row, rowIndex)
+		_, err := areaHasDuplicate(puzzle.ValuesInRow(rowIndex), Row, rowIndex)
 		if err != nil {
 			return false, fmt.Errorf("Row check failed: %v", err)
 		}
@@ -260,7 +288,7 @@ func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
 
 	// check each column
 	for columnIndex := range sudoku.GridSize {
-		_, err := areaHasDuplicate(puzzle.ColumnAt(columnIndex), Column, columnIndex)
+		_, err := areaHasDuplicate(puzzle.ValuesInColumn(columnIndex), Column, columnIndex)
 		if err != nil {
 			return false, fmt.Errorf("Column check failed: %v", err)
 		}
@@ -268,7 +296,7 @@ func validatePuzzle(puzzle sudoku.Puzzle) (bool, error) {
 
 	// check each 3x3 sector
 	for sectorIndex := range sudoku.GridSize {
-		_, err := areaHasDuplicate(puzzle.SectorAt(sectorIndex), Sector, sectorIndex)
+		_, err := areaHasDuplicate(puzzle.ValuesInSector(sectorIndex), Sector, sectorIndex)
 		if err != nil {
 			return false, fmt.Errorf("Sector check failed: %v", err)
 		}
@@ -289,6 +317,8 @@ type Diagnostics struct {
 	BacktrackCount     int
 	NodeVisitCount     int
 	ValidityCheckCount int
+	SolutionsFound     int
+	Solutions          []string
 }
 
 func traversePuzzle(puzzle sudoku.Puzzle, level int, options Options, diagnostics *Diagnostics) (PuzzleStatus, sudoku.Puzzle, Diagnostics) {
@@ -312,7 +342,24 @@ func traversePuzzle(puzzle sudoku.Puzzle, level int, options Options, diagnostic
 
 	switch status {
 	case Solved:
-		return Solved, puzzle, *diagnostics
+		// record solution in diagnostics
+		(*diagnostics).SolutionsFound++
+		(*diagnostics).Solutions = append((*diagnostics).Solutions, puzzle.String())
+
+		switch options.TraversalType {
+		case FindFirst:
+			return Solved, puzzle, *diagnostics
+		case EnsureUnique:
+			if (*diagnostics).SolutionsFound > 1 {
+				return Solved, puzzle, *diagnostics
+			} else {
+				return Invalid, puzzle, *diagnostics
+			}
+		case FindAll:
+			return Invalid, puzzle, *diagnostics
+		default:
+			panic(fmt.Sprintf("Error: unrecognized options.TraversalType %s", options.TraversalType))
+		}
 	case Valid:
 		nextRow, nextCell, err := findNextEmptyCell(puzzle)
 		if err != nil {
@@ -346,9 +393,18 @@ func traversePuzzle(puzzle sudoku.Puzzle, level int, options Options, diagnostic
 		}
 
 		// if we haven't found a solution at this point, then we'll need to backtrack
-		return Invalid, puzzle, *diagnostics
+		// unless were at the top and some solution(s) have been found
+		if level == 1 && (*diagnostics).SolutionsFound > 0 {
+			return Solved, puzzle, *diagnostics
+		} else {
+			return Invalid, puzzle, *diagnostics
+		}
 	case Invalid:
-		return Invalid, puzzle, *diagnostics
+		if level == 1 && (*diagnostics).SolutionsFound > 0 {
+			return Solved, puzzle, *diagnostics
+		} else {
+			return Invalid, puzzle, *diagnostics
+		}
 	default:
 		panic("Should not have reached here when traversing puzzle")
 	}
@@ -494,25 +550,10 @@ func hasDuplicates(cells []int) int {
 		if seen[cell] {
 			return i
 		}
+		seen[cell] = true
 	}
 
 	return -1
-}
-
-func removeBlanks(cells []int) []int {
-	// Avoid doing this (it creates a nil slice?)
-	// var compactedSlice []int
-
-	// Instead, do this
-	compactedSlice := []int{}
-
-	for _, cell := range cells {
-		if cell != 0 {
-			compactedSlice = append(compactedSlice, cell)
-		}
-	}
-
-	return compactedSlice
 }
 
 func printPuzzle(puzzle sudoku.Puzzle) {
