@@ -120,6 +120,41 @@ func recordPuzzleTemplate(db *sql.DB, puzzle sudoku.Puzzle, seed int64) int64 {
 	return id
 }
 
+type PuzzleTemplate struct {
+	ID    int
+	Seed  int64
+	Board string
+}
+
+func findOrCreateSolution(db *sql.DB, options Options) (sudoku.Puzzle, int64, bool, error) {
+	new := true
+	puzzleTemplate := &PuzzleTemplate{}
+
+	findPuzzleTemplateSql := "select id, seed, board from puzzle_templates where seed = ?;"
+	err := db.QueryRow(findPuzzleTemplateSql, options.Seed).Scan(
+		&puzzleTemplate.ID,
+		&puzzleTemplate.Seed,
+		&puzzleTemplate.Board,
+	)
+
+	notFound := false
+	if err == sql.ErrNoRows {
+		notFound = true
+	} else if err != nil {
+		return sudoku.Puzzle{}, -1, !new, err
+	}
+
+	if notFound {
+		// generate a new puzzle with this seed
+		puzzle := solveEmptyPuzzle(options)
+		id := recordPuzzleTemplate(db, puzzle, options.Seed)
+
+		return puzzle, id, new, nil
+	} else {
+		return hydratePuzzle(puzzleTemplate.Board), int64(puzzleTemplate.ID), !new, nil
+	}
+}
+
 func main() {
 	cmdSolveEmpty := &cobra.Command{
 		Use:   "solve-empty",
@@ -142,13 +177,21 @@ func main() {
 
 			options := NewOptions(false, FindFirst, Shuffled, seedFromFlag)
 
-			puzzle := solveEmptyPuzzle(options)
+			puzzle, id, new, err := findOrCreateSolution(db, options)
+			if err != nil {
+				fmt.Printf("Error during findOrCreateSolution: %v\n", err)
+				os.Exit(1)
+			}
 
-			id := recordPuzzleTemplate(db, puzzle, options.Seed)
-
-			fmt.Printf("Generated puzzle with seed %d\n", options.Seed)
-			printPuzzle(puzzle)
-			fmt.Printf("Inserted row in puzzle_templates, id: %d\n", id)
+			if new {
+				fmt.Printf("Generated new solution with seed %d\n", options.Seed)
+				printPuzzle(puzzle)
+				fmt.Printf("Inserted row in puzzle_templates, id: %d\n", id)
+			} else {
+				fmt.Printf("Found existing solution with seed %d\n", options.Seed)
+				printPuzzle(puzzle)
+				fmt.Printf("Existing row in puzzle_templates, id: %d\n", id)
+			}
 		},
 	}
 	cmdSolve := &cobra.Command{
