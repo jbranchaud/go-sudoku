@@ -22,7 +22,12 @@ $ cat samples/001.txt
 510928074
 ```
 
-## Solve
+## CLI
+
+- [solve](#solve)
+- [solve-empty](#solve-empty)
+
+### Solve
 
 The `solve` command will read in a puzzle and solve it.
 
@@ -68,48 +73,57 @@ Solved the puzzle:
 ╚═══════╧═══════╧═══════╝
 ```
 
-## Generate
+### Solve Empty
 
-The `generate` command will randomly generate a filled-in puzzle. This is the
-first step in creating a partially filled puzzle that can be solved.
-
-```bash
-$ go run . generate
-Generated puzzle with seed 7650690644359445861
-╔═══════╤═══════╤═══════╗
-║ 4 8 3 │ 2 5 7 │ 6 1 9 ║
-║ 2 7 1 │ 3 6 9 │ 5 4 8 ║
-║ 6 5 9 │ 4 1 8 │ 3 2 7 ║
-╠═══════╪═══════╪═══════╣
-║ 3 2 6 │ 5 8 1 │ 7 9 4 ║
-║ 8 4 5 │ 7 9 3 │ 1 6 2 ║
-║ 1 9 7 │ 6 2 4 │ 8 3 5 ║
-╠═══════╪═══════╪═══════╣
-║ 7 3 2 │ 1 4 5 │ 9 8 6 ║
-║ 5 6 8 │ 9 3 2 │ 4 7 1 ║
-║ 9 1 4 │ 8 7 6 │ 2 5 3 ║
-╚═══════╧═══════╧═══════╝
-```
-
-Generate a random filled-in puzzle deterministically with the `--seed` flag:
+The first step to generating Sudoku puzzles is to randomly solve empty boards.
+The `solve-empty` command will randomly generaate a filled-in puzzle. If a seed
+is not given, it will use a random `int64` seed. The program will exit as soon
+as it finds a complete, valid board. By default, the board is stored in a
+SQLite database.
 
 ```bash
-$ go run . generate --seed 27
-Generated puzzle with seed 27
+$ go run . solve-empty
+Generated puzzle with seed 4231416189773905422
 ╔═══════╤═══════╤═══════╗
-║ 3 5 4 │ 6 1 2 │ 7 8 9 ║
-║ 7 8 6 │ 3 4 9 │ 1 2 5 ║
-║ 1 2 9 │ 5 7 8 │ 4 3 6 ║
+║ 1 8 2 │ 6 5 3 │ 7 4 9 ║
+║ 4 6 3 │ 1 7 9 │ 2 5 8 ║
+║ 5 7 9 │ 4 2 8 │ 1 3 6 ║
 ╠═══════╪═══════╪═══════╣
-║ 8 7 3 │ 2 6 1 │ 5 9 4 ║
-║ 6 1 2 │ 4 9 5 │ 3 7 8 ║
-║ 4 9 5 │ 7 8 3 │ 2 6 1 ║
+║ 2 1 6 │ 7 4 5 │ 8 9 3 ║
+║ 7 3 4 │ 8 9 1 │ 5 6 2 ║
+║ 8 9 5 │ 2 3 6 │ 4 1 7 ║
 ╠═══════╪═══════╪═══════╣
-║ 2 3 1 │ 8 5 6 │ 9 4 7 ║
-║ 5 4 8 │ 9 2 7 │ 6 1 3 ║
-║ 9 6 7 │ 1 3 4 │ 8 5 2 ║
+║ 3 4 1 │ 9 8 2 │ 6 7 5 ║
+║ 6 5 8 │ 3 1 7 │ 9 2 4 ║
+║ 9 2 7 │ 5 6 4 │ 3 8 1 ║
 ╚═══════╧═══════╧═══════╝
+Inserted row in puzzle_templates, id: 11
 ```
+
+Here we specify our own seed value with the `--seed` flag:
+
+```bash
+$ go run . solve-empty --seed 42
+Generated puzzle with seed 42
+╔═══════╤═══════╤═══════╗
+║ 3 4 6 │ 5 7 1 │ 2 8 9 ║
+║ 1 2 8 │ 4 3 9 │ 6 5 7 ║
+║ 5 7 9 │ 2 6 8 │ 3 1 4 ║
+╠═══════╪═══════╪═══════╣
+║ 6 3 1 │ 8 4 2 │ 7 9 5 ║
+║ 7 8 2 │ 6 9 5 │ 1 4 3 ║
+║ 4 9 5 │ 3 1 7 │ 8 2 6 ║
+╠═══════╪═══════╪═══════╣
+║ 2 1 4 │ 7 5 3 │ 9 6 8 ║
+║ 8 5 3 │ 9 2 6 │ 4 7 1 ║
+║ 9 6 7 │ 1 8 4 │ 5 3 2 ║
+╚═══════╧═══════╧═══════╝
+Inserted row in puzzle_templates, id: 12
+```
+
+### Generate
+
+_coming soon..._
 
 ## Development
 

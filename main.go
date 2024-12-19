@@ -121,9 +121,9 @@ func recordPuzzleTemplate(db *sql.DB, puzzle sudoku.Puzzle, seed int64) int64 {
 }
 
 func main() {
-	cmdGenerate := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate a random, solved puzzle",
+	cmdSolveEmpty := &cobra.Command{
+		Use:   "solve-empty",
+		Short: "Randomly solve an empty board",
 		Long:  `Generate a randomly-seeded puzzle that is fully solved`,
 		Run: func(cmd *cobra.Command, args []string) {
 			db := setupDatabase()
@@ -142,7 +142,7 @@ func main() {
 
 			options := NewOptions(false, FindFirst, Shuffled, seedFromFlag)
 
-			puzzle := generateSolvedPuzzle(options)
+			puzzle := solveEmptyPuzzle(options)
 
 			id := recordPuzzleTemplate(db, puzzle, options.Seed)
 
@@ -213,13 +213,13 @@ func main() {
 	var Seed int64
 	var rootCmd = &cobra.Command{Use: "go-sudoku"}
 	rootCmd.AddCommand(cmdSolve)
-	rootCmd.AddCommand(cmdGenerate)
-	cmdGenerate.PersistentFlags().Int64VarP(&Seed, "seed", "", -1, "deterministically seed generated puzzle")
+	rootCmd.AddCommand(cmdSolveEmpty)
+	cmdSolveEmpty.PersistentFlags().Int64VarP(&Seed, "seed", "", -1, "deterministically seed generated puzzle")
 	rootCmd.PersistentFlags().BoolVarP(&Debug, "debug", "", false, "turns on debug mode, extra logging")
 	rootCmd.Execute()
 }
 
-func generateSolvedPuzzle(options Options) sudoku.Puzzle {
+func solveEmptyPuzzle(options Options) sudoku.Puzzle {
 	board := make([][]int, sudoku.GridSize)
 	for i := range sudoku.GridSize {
 		board[i] = make([]int, sudoku.GridSize)
